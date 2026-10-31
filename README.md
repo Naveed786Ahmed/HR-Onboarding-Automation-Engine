@@ -13,39 +13,22 @@ Instead of memory dependency, this system uses a **Database-Driven State Machine
 ![Architecture Diagram](docs/architecture-diagram.svg)
 
 ```mermaid
-flowchart LR
-    classDef trigger fill:#e1f5fe,stroke:#0288d1,stroke-width:2px,color:#01579b;
-    classDef process fill:#fff3e0,stroke:#f57c00,stroke-width:2px,color:#e65100;
-    classDef db fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#1b5e20;
-    classDef external fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#4a148c;
-    classDef gate fill:#fbe9e7,stroke:#d84315,stroke-width:2px,color:#bf360c;
 
-    subgraph Phase1 ["1. Intake & AI"]
-        A[PDF Resume Upload]:::trigger --> B[n8n Form & Parser]:::process
-        B --> C[OpenAI Schema Validation]:::process
-    end
-
-    subgraph Phase2 ["2. Persistence & E-Sign"]
-        C --> D[(Supabase DB)]:::db
-        D --> E[DocuSign API Dispatch]:::external
-    end
-
-    subgraph Phase3 ["3. Async & HITL"]
-        E -.->|1-3 Days Delay| F[DocuSign Webhook]:::external
-        F --> G[(Status: Signed)]:::db
-        G --> H[Slack Block Kit Card]:::gate
-    end
-
-    subgraph Phase4 ["4. Provisioning"]
-        H -.->|Manager Click| I{Switch Gate}:::gate
-        I -->|Approved| J[(Status: Approved)]:::db
-        J --> K[IT Workspace Setup]:::process
-        K --> L[(Audit Log)]:::db
-        L --> M[Slack: Update Approved]:::external
-
-        I -->|Rejected| N[(Status: Rejected)]:::db
-        N --> O[Slack: Update Rejected]:::external
-    end
+flowchart TD
+    A["PDF Resume Upload"] --> B["n8n Form & Parser"]
+    B --> C["OpenAI Resume Screening"]
+    C --> D[("Supabase PostgreSQL")]
+    D --> E["DocuSign API"]
+    E -.->|"1-3 Days"| F["DocuSign Webhook"]
+    F --> G[("Candidate Status: Signed")]
+    G --> H["Slack Approval Card"]
+    H --> I{"Manager Decision"}
+    I -->|"Approved"| J[("Status: Approved")]
+    J --> K["IT Provisioning"]
+    K --> L[("Audit Log")]
+    L --> M["Slack: Approved"]
+    I -->|"Rejected"| N[("Status: Rejected")]
+    N --> O["Slack: Rejected"]
 ```
 
 ---
