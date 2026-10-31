@@ -12,27 +12,6 @@ Instead of memory dependency, this system uses a **Database-Driven State Machine
 
 ![Architecture Diagram](docs/architecture-diagram.svg)
 
-```mermaid
-
-flowchart TD
-    A["PDF Resume Upload"] --> B["n8n Form & Parser"]
-    B --> C["OpenAI Resume Screening"]
-    C --> D[("Supabase PostgreSQL")]
-    D --> E["DocuSign API"]
-    E -.->|"1-3 Days"| F["DocuSign Webhook"]
-    F --> G[("Candidate Status: Signed")]
-    G --> H["Slack Approval Card"]
-    H --> I{"Manager Decision"}
-    I -->|"Approved"| J[("Status: Approved")]
-    J --> K["IT Provisioning"]
-    K --> L[("Audit Log")]
-    L --> M["Slack: Approved"]
-    I -->|"Rejected"| N[("Status: Rejected")]
-    N --> O["Slack: Rejected"]
-```
-
----
-
 ## ⚙️ How It Works (The Complete Flow)
 
 ### 1. Candidate Intake & AI Screening (Phase 1)
