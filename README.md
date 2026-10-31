@@ -8,7 +8,7 @@ This project solves a common backend problem in workflow automation: **how to ha
 
 ## 🏛️ System Architecture
 
-![Architecture Diagram](docs/architecture-diagram.png)
+![Architecture Diagram](docs/architecture-diagram.svg)
 
 ```mermaid
 flowchart LR
