@@ -1,0 +1,271 @@
+{
+  "name": "HR Onboarding Phase 1",
+  "nodes": [
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are an expert HR recruiter AI. Read this resume text: {{ $json.text }}. \nExtract the candidate details and calculate a qualification_score between 0 and 100 based on their tech stack relevance (e.g., Full-Stack, Python, n8n experience should score high, around 80-90). If email is missing, return \"Not Provided\"."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_schema",
+              "schema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"candidate_name\": { \"type\": \"string\" },\n    \"email\": { \"type\": \"string\" },\n    \"years_experience\": { \"type\": \"number\" },\n    \"core_skills\": { \n      \"type\": \"array\", \n      \"items\": { \"type\": \"string\" } \n    },\n    \"qualification_score\": { \n      \"type\": \"number\", \n      \"description\": \"Score between 0 to 100 based on resume evaluation\" \n    }\n  },\n  \"required\": [\"candidate_name\", \"email\", \"years_experience\", \"core_skills\", \"qualification_score\"],\n  \"additionalProperties\": false\n}"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        -80,
+        0
+      ],
+      "id": "1fec8594-e342-4ea2-80de-c74dc823a9c6",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "pnIJVEsiISvcxQId",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "useCustomSchema": true,
+        "tableId": "=candidates",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "=candidate_name",
+              "fieldValue": "={{ $json.output[0].content[0].text.candidate_name }}"
+            },
+            {
+              "fieldId": "email",
+              "fieldValue": "={{ $json.output[0].content[0].text.email }}"
+            },
+            {
+              "fieldId": "years_experience",
+              "fieldValue": "={{ $json.output[0].content[0].text.years_experience }}"
+            },
+            {
+              "fieldId": "core_skills",
+              "fieldValue": "={{ $json.output[0].content[0].text.core_skills }}"
+            },
+            {
+              "fieldId": "qualification_score",
+              "fieldValue": "={{ $json.output[0].content[0].text.qualification_score }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "={{ $json.output[0].status }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        288,
+        0
+      ],
+      "id": "c99bfe65-3f16-4a63-8f0c-caaec16f134b",
+      "name": "Create a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "a7MbL2t8asnZW7Og",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://demo.docusign.net/restapi/v2.1/accounts/51416889/envelopes",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"templateId\": \"b26edf31-0646-46a5-99f6-28efdd1bc43d\",\n  \"status\": \"sent\",\n  \"templateRoles\": [\n    {\n      \"email\": \"{{ $json.email }}\",\n      \"name\": \"{{ $json.candidate_name }}\",\n      \"roleName\": \"Candidate\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        512,
+        0
+      ],
+      "id": "fbcc5f40-ee8d-49dd-be0f-37770aff2073",
+      "name": "HTTP Request",
+      "credentials": {
+        "oAuth2Api": {
+          "id": "BZW1tHcYjfUmjziG",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "candidates",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "email",
+              "condition": "eq",
+              "keyValue": "={{ $('Message a model').item.json.output[0].content[0].text.email }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "docusign_envelope_id",
+              "fieldValue": "={{ $json.envelopeId }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "Waiting_For_Sign"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        736,
+        0
+      ],
+      "id": "a301129b-15f8-4d2b-a3b9-1d3b19942ad2",
+      "name": "Update a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "a7MbL2t8asnZW7Og",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "formTitle": "HR Candidate Onboarding Portal",
+        "formDescription": "Please upload your resume in PDF format to initiate ATS screening.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Resume PDF",
+              "fieldType": "file",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        -464,
+        0
+      ],
+      "id": "21b601a5-42f6-45ac-9341-ac546d446c65",
+      "name": "On form submission",
+      "webhookId": "6cadeaea-ec0f-4c65-948b-a1e5fcd9f9ba"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "Resume_PDF",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.2,
+      "position": [
+        -272,
+        0
+      ],
+      "id": "b184fe40-e489-4f10-ba1a-7f8f198d2c40",
+      "name": "Extract from File"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Create a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Update a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "944581b0-6ef9-497f-8bf5-3ccaa72ce6bf",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "72c4597c104b9f9b7b96d59e45996070047f99f26e2228ccbc7fbee76d121a91"
+  },
+  "nodeGroups": [],
+  "id": "n6CEjXKZLlwjEflc",
+  "tags": []
+}

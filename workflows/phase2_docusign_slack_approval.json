@@ -1,0 +1,505 @@
+{
+  "name": "HR Recruitment - Phase 2",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "b8d062df-75c8-4871-a5fd-21c090312349",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "c13cc233-5493-4426-8a40-b3c2685acbdf",
+      "name": "Webhook",
+      "webhookId": "b8d062df-75c8-4871-a5fd-21c090312349"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "candidates",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "docusign_envelope_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.body.data.envelopeId }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "Signed"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        224,
+        0
+      ],
+      "id": "59cbfa46-687a-420a-9d3d-ca3d8feb3a0b",
+      "name": "Update a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "a7MbL2t8asnZW7Og",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"channel\": \"C0CDD4KRAUB\",\n  \"text\": \"New Candidate Contract Signed - Approval Required\",\n  \"blocks\": [\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"📋 *New Onboarding Approval Request*\\n• *Candidate:* {{ $json.candidate_name }}\\n• *Experience:* {{ $json.years_experience }} Years\\n• *AI Qualification Score:* `{{ $json.qualification_score }}/100`\\n• *Status:* Contract Signed ✅\"\n      }\n    },\n    {\n      \"type\": \"actions\",\n      \"elements\": [\n        {\n          \"type\": \"button\",\n          \"text\": {\n            \"type\": \"plain_text\",\n            \"text\": \"✅ Approve Onboarding\"\n          },\n          \"style\": \"primary\",\n          \"value\": \"approve_{{ $json.id }}\"\n        },\n        {\n          \"type\": \"button\",\n          \"text\": {\n            \"type\": \"plain_text\",\n            \"text\": \"❌ Reject\"\n          },\n          \"style\": \"danger\",\n          \"value\": \"reject_{{ $json.id }}\"\n        }\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        448,
+        0
+      ],
+      "id": "7613e758-3a23-469f-9aab-6a660704d9f5",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "JGSHvJF5rF3t1q3p",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "b2bf980b-e189-4e90-99bf-5935aa4d1d9f",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        256
+      ],
+      "id": "e5d12e04-7b47-4d8a-b180-57772d7aedd9",
+      "name": "Webhook1",
+      "webhookId": "b2bf980b-e189-4e90-99bf-5935aa4d1d9f"
+    },
+    {
+      "parameters": {
+        "content": "Chain 1 (DocuSign to Slack):DocuSign Webhook ➔ Supabase Status Update ➔ HTTP Request (Send Slack Card)",
+        "height": 112,
+        "width": 208
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -240,
+        0
+      ],
+      "typeVersion": 1,
+      "id": "35919977-04a5-406c-9bbf-bc2c6d1dfc16",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "Chain 2 (Slack Button Callback to IT Provisioning):Slack Callback Webhook Node ➔ Code Node (Parse Payload) ➔ Switch / IF Node ➔ IT Provisioning & Audit Log",
+        "height": 80,
+        "width": 464
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -512,
+        272
+      ],
+      "typeVersion": 1,
+      "id": "b96d4573-ed9b-439b-96cc-4a8eabeda1e4",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Slack payload parsing logic\nconst rawBody = $json.body || $json;\nconst payloadString = typeof rawBody.payload === 'string' ? rawBody.payload : JSON.stringify(rawBody.payload);\nconst slackData = JSON.parse(payloadString);\n\n// Action value extract karna (e.g. \"approve_c3d55fd6-7923...\")\nconst actionValue = slackData.actions[0].value || ''; \nconst isApproved = actionValue.startsWith('approve');\n\n// ID extract karna (agar approve_ ya reject_ prefix ho toh usay hata kar sirf UUID lena)\nlet candidateId = actionValue;\nif (actionValue.includes('_')) {\n  candidateId = actionValue.split('_').slice(1).join('_'); // Extra safety for UUIDs\n}\n\nconst managerName = slackData.user.name || slackData.user.username || 'Manager';\nconst responseUrl = slackData.response_url;\n\nreturn {\n  candidateId: candidateId,\n  isApproved: isApproved,\n  managerName: managerName,\n  responseUrl: responseUrl\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        256
+      ],
+      "id": "af07bcc7-23b5-44ad-833a-581bd5619acb",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "id": "4ee5eb7a-7eae-46cd-8f86-e63c2713b0e5",
+                    "leftValue": "={{ $json.isApproved }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "id": "a4158b66-7a97-4fef-8908-d3f23f3a6ba0",
+                    "leftValue": "={{ $json.isApproved }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "false",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.5,
+      "position": [
+        448,
+        256
+      ],
+      "id": "479ea984-9574-4ba1-93d6-8feece314769",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "candidates",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.candidateId }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "Approved_Provisioned"
+            },
+            {
+              "fieldId": "approved_by",
+              "fieldValue": "={{ $json.managerName }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        672,
+        160
+      ],
+      "id": "f74249ee-eb09-40e2-bf8e-dd04b4f104c5",
+      "name": "Update a row1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "a7MbL2t8asnZW7Og",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://httpbin.org/post",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"event\": \"CREATE_EMPLOYEE_IDENTITY\",\n  \"candidate_id\": \"{{ $json.id }}\",\n  \"corporate_email\": \"naveed.ahmed@company.com\",\n  \"assigned_groups\": [\"Engineering-Department\", \"Slack-Core-Access\"],\n  \"provisioned_at\": \"{{ $now }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        896,
+        160
+      ],
+      "id": "92b9edd1-782b-4f03-89df-d105372f9649",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "tableId": "audit_logs",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "candidate_id",
+              "fieldValue": "={{ $('Code in JavaScript').item.json.candidateId }}"
+            },
+            {
+              "fieldId": "action",
+              "fieldValue": "=MANAGER_APPROVED"
+            },
+            {
+              "fieldId": "created_at",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "actor",
+              "fieldValue": "={{ $('Code in JavaScript').item.json.managerName }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        160
+      ],
+      "id": "d46654af-53a5-4c93-ab42-791ad79e1ae5",
+      "name": "Create a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "a7MbL2t8asnZW7Og",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Code in JavaScript').item.json.responseUrl }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"✅ *ONBOARDING APPROVED*\\nCandidate ID `{{ $('Code in JavaScript').item.json.candidateId }}` has been approved by @{{ $('Code in JavaScript').item.json.managerName }}. IT Credentials and Workspace Provisioning initiated.\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1344,
+        160
+      ],
+      "id": "e9d6afd9-018e-449f-bafe-25c6fbbe5000",
+      "name": "HTTP Request2"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "candidates",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Code in JavaScript').item.json.candidateId }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "Rejected"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        672,
+        352
+      ],
+      "id": "494584ff-1c6b-418e-84da-f5a4b587ff36",
+      "name": "Update a row2",
+      "credentials": {
+        "supabaseApi": {
+          "id": "a7MbL2t8asnZW7Og",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Code in JavaScript').item.json.responseUrl }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"❌ *ONBOARDING REJECTED*\\nRequest for Candidate ID `{{ $('Code in JavaScript').item.json.candidateId }}` was rejected by @{{ $('Code in JavaScript').item.json.managerName }}.\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        896,
+        352
+      ],
+      "id": "d5992b71-f55e-407a-9fce-03cea1984da0",
+      "name": "HTTP Request3"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Update a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update a row": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Update a row1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update a row2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update a row1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Create a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update a row2": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "28316441-5294-47cd-b6af-374c7208a71d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "72c4597c104b9f9b7b96d59e45996070047f99f26e2228ccbc7fbee76d121a91"
+  },
+  "nodeGroups": [],
+  "id": "piifKjj5fPHrgDgn",
+  "tags": []
+}
