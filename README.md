@@ -1,8 +1,10 @@
 # Enterprise-Grade Autonomous HR Onboarding Engine
 
-An event-driven, fault-tolerant HR onboarding and ATS pipeline built using **n8n**, **Supabase (PostgreSQL)**, **OpenAI**, **DocuSign**, and **Slack**. 
+An event-driven, fault-tolerant HR onboarding and ATS pipeline built using **n8n**, **Supabase (PostgreSQL)**, **OpenAI**, **DocuSign**, and **Slack**.
 
-This project solves a common backend problem in workflow automation: **how to handle long-running asynchronous processes (like waiting 3 days for a candidate to sign an employment contract) without losing system state or relying on volatile in-memory timers.** Instead of memory dependency, this system uses a **Database-Driven State Machine** pattern.
+This project solves a common backend problem in workflow automation: **how to handle long-running asynchronous processes (like waiting 3 days for a candidate to sign an employment contract) without losing system state or relying on volatile in-memory timers.**
+
+Instead of memory dependency, this system uses a **Database-Driven State Machine** pattern.
 
 ---
 
@@ -40,83 +42,105 @@ flowchart LR
         J --> K[IT Workspace Setup]:::process
         K --> L[(Audit Log)]:::db
         L --> M[Slack: Update Approved]:::external
-        
+
         I -->|Rejected| N[(Status: Rejected)]:::db
         N --> O[Slack: Update Rejected]:::external
     end
+```
 
-⚙️ How It Works (The Complete Flow)
-Candidate Intake & AI Screening (Phase 1):
+---
 
-The candidate uploads their resume PDF through a secure web form.
+## ⚙️ How It Works (The Complete Flow)
 
-n8n extracts the raw text from the binary file and sends it to OpenAI (gpt-4o-mini) with a strict JSON schema.
+### 1. Candidate Intake & AI Screening (Phase 1)
 
-The AI parses the resume, evaluates experience, and returns a structured qualification score.
+- The candidate uploads their resume PDF through a secure web form.
+- n8n extracts the raw text from the binary file and sends it to OpenAI (gpt-4o-mini) with a strict JSON schema.
+- The AI parses the resume, evaluates experience, and returns a structured qualification score.
 
-Database Persistence & Contract Dispatch (Phase 2):
+### 2. Database Persistence & Contract Dispatch (Phase 2)
 
-The parsed candidate data and AI score are stored inside Supabase PostgreSQL.
+- The parsed candidate data and AI score are stored inside Supabase PostgreSQL.
+- The system immediately triggers the DocuSign API to dispatch an employment agreement.
+- The candidate's record state in the database is updated to `Pending_Signature`, and the initial workflow closes safely, consuming zero server resources while waiting.
 
-The system immediately triggers the DocuSign API to dispatch an employment agreement.
+### 3. Asynchronous Webhook & State Transition (Phase 3)
 
-The candidate's record state in the database is updated to Pending_Signature, and the initial workflow closes safely (consuming zero server resources while waiting).
+- Days later, once the candidate signs the agreement, DocuSign fires a secure webhook back to our system.
+- The workflow catches the event, updates the candidate status to `Signed` in Supabase, and posts an interactive card to Slack using Block Kit.
 
-Asynchronous Webhook & State Transition (Phase 3):
+### 4. Human-in-the-Loop (HITL) & IT Provisioning (Phase 4)
 
-Days later, once the candidate signs the agreement, DocuSign fires a secure webhook back to our system.
-
-The workflow catches the event, updates the candidate status to Signed in Supabase, and posts an interactive card to Slack using Block Kit.
-
-Human-in-the-Loop (HITL) & IT Provisioning (Phase 4):
-
-The hiring manager reviews the candidate details directly in Slack and clicks Approve or Reject.
+The hiring manager reviews the candidate details directly in Slack and clicks **Approve** or **Reject**.
 
 Based on the button click, a conditional switch routes the logic:
 
-If Approved: Status updates to Approved, a mock IT provisioning HTTP request runs, an immutable audit log is written to Supabase, and the Slack message updates in-place to show approval.
+**If Approved:**
+- Status updates to `Approved`.
+- A mock IT provisioning HTTP request runs.
+- An audit log is written to Supabase.
+- The Slack message updates in-place to show approval.
 
-If Rejected: Status updates to Rejected, and the Slack message updates accordingly.
+**If Rejected:**
+- Status updates to `Rejected`.
+- The Slack message updates accordingly.
 
-🛠️ Tech Stack
-Orchestration: n8n (Self-Hosted)
+---
 
-Database: Supabase (PostgreSQL)
+## 🛠️ Tech Stack
 
-AI Engine: OpenAI API (gpt-4o-mini)
+| Component | Technology |
+|---|---|
+| Orchestration | n8n (Self-Hosted) |
+| Database | Supabase (PostgreSQL) |
+| AI Engine | OpenAI API (gpt-4o-mini) |
+| E-Sign | DocuSign REST API & Connect Webhooks |
+| Notifications / UI | Slack API (Block Kit) |
 
-E-Sign: DocuSign REST API & Connect Webhooks
+---
 
-Notifications / UI: Slack API (Block Kit)
+## 📂 Repository Layout
 
-📂 Repository Layout
-Plaintext
+```text
 hr-onboarding-automation/
+│
 ├── workflows/
-│   ├── phase1_ingestion_ai.json            # Resume intake, PDF extraction & AI scoring
-│   └── phase2_docusign_slack_approval.json # Webhook listeners, state machine & Slack HITL gate
+│   ├── phase1_ingestion_ai.json
+│   └── phase2_docusign_slack_approval.json
+│
 ├── docs/
-│   ├── architecture-diagram.png            # Visual architecture layout
-│   └── database-schema.sql                 # PostgreSQL DDL for Supabase tables
-├── .env.example                            # Required environment variables template
-├── .gitignore                              # Excluded secrets & local files
-└── README.md                               # Project documentation
-🚀 Getting Started
-1. Setup Database
-Run the SQL queries provided in docs/database-schema.sql inside your Supabase SQL Editor to create the candidates and audit_logs tables.
+│   ├── architecture-diagram.png
+│   └── database-schema.sql
+│
+├── .env.example
+├── .gitignore
+└── README.md
+```
 
-2. Import Workflows
-Open your n8n dashboard.
+---
 
-Import both JSON files located inside the workflows/ directory.
+## 🚀 Getting Started
 
-3. Environment Variables
-Create a local .env file using .env.example as a template and provide your API credentials for OpenAI, Supabase, DocuSign, and Slack.
+### 1. Setup Database
 
-👨‍💻 Author
-Naveed Ahmed
+Run the SQL queries provided in `docs/database-schema.sql` inside your Supabase SQL Editor to create the `candidates` and `audit_logs` tables.
 
-Ai Automation Developer
+### 2. Import Workflows
 
-GitHub: @Naveed786Ahmed
-LinkedIn: Naveed Ahmed
+- Open your n8n dashboard.
+- Import both JSON files located inside the `workflows/` directory.
+
+### 3. Environment Variables
+
+Create a local `.env` file using `.env.example` as a template and provide your API credentials for OpenAI, Supabase, DocuSign, and Slack.
+
+---
+
+## 👨‍💻 Author
+
+**Naveed Ahmed**
+
+AI & Automation Developer
+
+- GitHub: [@Naveed786Ahmed](https://github.com/Naveed786Ahmed)
+- LinkedIn: Naveed Ahmed
