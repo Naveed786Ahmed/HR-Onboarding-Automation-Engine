@@ -1,10 +1,32 @@
 # Enterprise-Grade Autonomous HR Onboarding Engine
 
-An event-driven, fault-tolerant HR onboarding and ATS pipeline built using **n8n**, **Supabase (PostgreSQL)**, **OpenAI**, **DocuSign**, and **Slack**.
+> **A Stateless, Event-Driven & Fault-Tolerant ATS/Onboarding Pipeline Built with Database-Driven State Machines**
 
-This project solves a common backend problem in workflow automation: **how to handle long-running asynchronous processes (like waiting 3 days for a candidate to sign an employment contract) without losing system state or relying on volatile in-memory timers.**
+[![n8n](https://img.shields.io/badge/n8n-Workflow%20Automation-FF6D5A?style=flat-square&logo=n8n)](https://n8n.io/)
+[![PostgreSQL](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?style=flat-square&logo=supabase)](https://supabase.com/)
+[![OpenAI](https://img.shields.io/badge/OpenAI-gpt--4o--mini-412991?style=flat-square&logo=openai)](https://openai.com/)
+[![DocuSign](https://img.shields.io/badge/DocuSign-E--Sign%20API-FF0033?style=flat-square&logo=docusign)](https://www.docusign.com/)
+[![Slack](https://img.shields.io/badge/Slack-Interactive%20Block%20Kit-4A154B?style=flat-square&logo=slack)](https://slack.com/)
 
-Instead of memory dependency, this system uses a **Database-Driven State Machine** pattern.
+---
+
+## 🎯 The Business Problem & Engineering Context
+
+Mid-to-large-scale enterprises processing high-volume candidate onboarding face critical operational and backend challenges:
+
+1. **High Latency Resume Screening:** Manual processing of unstructured resumes leads to hiring delays and inconsistent candidate evaluations.
+2. **Contract Lifecycle Friction:** Manual NDA and contract generation creates unnecessary administrative overhead.
+3. **The Long-Running Async State Problem (Core Backend Challenge):** Standard automation engines rely on volatile in-memory timers or long-polling execution. If a candidate takes 3–5 days to sign an agreement, server reboots or memory clears result in lost execution state.
+4. **Lack of Human-in-the-Loop (HITL) Security:** Fully automated pipelines often lack secure manager intervention gates before provisioning enterprise assets.
+5. **Auditability & Compliance:** Regulatory standards require immutable, timestamped audit logs for all onboarding state transitions.
+
+---
+
+## 💡 The Architectural Solution
+
+This system solves backend state loss by adopting a **Database-Driven State Machine Pattern** using **n8n**, **Supabase (PostgreSQL)**, **DocuSign Connect**, and **Slack Block Kit**.
+
+Instead of holding execution memory open during multi-day signing delays, all state transitions are persisted transactionally in PostgreSQL. Decoupled webhooks listen for external state triggers, ensuring **zero-memory dependency**, **high fault tolerance**, and **end-to-end auditability**.
 
 ---
 
