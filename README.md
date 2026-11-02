@@ -10,6 +10,16 @@
 
 ---
 
+<!-- Demo Video Section -->
+<div align="center">
+
+[![Watch Enterprise HR Engine Demo Video](https://img.youtube.com/vi/gcYUnXp-SOg/maxresdefault.jpg)](https://www.youtube.com/watch?v=gcYUnXp-SOg)
+
+> 🎥 **[Click Here to Watch Full 1080p HD System Walkthrough Video](https://www.youtube.com/watch?v=gcYUnXp-SOg)**
+</div>
+
+---
+
 ## 🎯 The Business Problem & Engineering Context
 
 Mid-to-large-scale enterprises processing high-volume candidate onboarding face critical operational and backend challenges:
